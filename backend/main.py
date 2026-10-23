@@ -1,27 +1,43 @@
 from pathlib import Path
 import json
 import os
+import sys
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="Deepfake Audio Detection API")
+backend_dir = Path(__file__).resolve().parent
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
 
-frontend_origin = os.getenv("FRONTEND_ORIGIN")
-allowed_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
-if frontend_origin:
-    allowed_origins.append(frontend_origin.rstrip("/"))
+try:
+    from core.config import get_settings
+    from api.v1.health import router as health_router
+except ImportError:
+    from backend.core.config import get_settings
+    from backend.api.v1.health import router as health_router
+
+settings = get_settings()
+
+app = FastAPI(
+    title=settings.app_name,
+    version=settings.app_version,
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_methods=["POST", "OPTIONS"],
+    allow_origins=settings.allowed_origins,
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
-SUPPORTED_EXTENSIONS = {".wav", ".wave"}
-MAX_UPLOAD_SIZE = 25 * 1024 * 1024
-UPLOAD_CHUNK_SIZE = 1024 * 1024
-UPLOAD_TOO_LARGE_DETAIL = "Upload is too large. Maximum request size is 25 MB."
+app.include_router(health_router)
+
+SUPPORTED_EXTENSIONS = settings.supported_extensions
+MAX_UPLOAD_SIZE = settings.max_upload_size_bytes
+UPLOAD_CHUNK_SIZE = settings.upload_chunk_size
+UPLOAD_TOO_LARGE_DETAIL = f"Upload is too large. Maximum request size is {settings.max_upload_size_mb} MB."
+
 
 
 class UploadSizeLimitMiddleware:
