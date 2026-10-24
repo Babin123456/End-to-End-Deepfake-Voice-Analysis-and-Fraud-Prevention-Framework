@@ -1,27 +1,29 @@
 from pathlib import Path
 import json
-import os
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
+from api.v1.health import router as health_router
+from core.config import get_settings
+
 app = FastAPI(title="Deepfake Audio Detection API")
 
-frontend_origin = os.getenv("FRONTEND_ORIGIN")
-allowed_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
-if frontend_origin:
-    allowed_origins.append(frontend_origin.rstrip("/"))
+settings = get_settings()
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_methods=["POST", "OPTIONS"],
+    allow_origins=settings.cors_origins,
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
 SUPPORTED_EXTENSIONS = {".wav", ".wave"}
-MAX_UPLOAD_SIZE = 25 * 1024 * 1024
-UPLOAD_CHUNK_SIZE = 1024 * 1024
-UPLOAD_TOO_LARGE_DETAIL = "Upload is too large. Maximum request size is 25 MB."
+MAX_UPLOAD_SIZE = settings.max_upload_size
+UPLOAD_CHUNK_SIZE = settings.upload_chunk_size
+UPLOAD_TOO_LARGE_DETAIL = (
+    f"Upload is too large. Maximum request size is {MAX_UPLOAD_SIZE // (1024 * 1024)} MB."
+)
 
 
 class UploadSizeLimitMiddleware:
@@ -97,6 +99,7 @@ class _UploadTooLarge(Exception):
 
 
 app.add_middleware(UploadSizeLimitMiddleware)
+app.include_router(health_router, prefix="/api/v1")
 
 
 import sys
