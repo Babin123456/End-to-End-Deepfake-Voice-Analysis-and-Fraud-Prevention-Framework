@@ -5,8 +5,7 @@ from fastapi import HTTPException
 
 
 MIN_DURATION_SECONDS = 0.25
-MAX_DURATION_SECONDS = 300.0  # 5 minutes maximum for single analysis
-SUPPORTED_SAMPLE_RATES = {8000, 11025, 16000, 22050, 32000, 44100, 48000, 96000}
+MAX_DURATION_SECONDS = 300.0
 
 
 def validate_and_decode_wav(raw_bytes: bytes) -> tuple[np.ndarray, int, int]:
@@ -20,7 +19,6 @@ def validate_and_decode_wav(raw_bytes: bytes) -> tuple[np.ndarray, int, int]:
             detail="The uploaded audio file is empty or missing a valid WAV header.",
         )
 
-    # Basic RIFF header validation
     if not (raw_bytes.startswith(b"RIFF") and b"WAVE" in raw_bytes[:16]):
         raise HTTPException(
             status_code=400,
@@ -42,7 +40,6 @@ def validate_and_decode_wav(raw_bytes: bytes) -> tuple[np.ndarray, int, int]:
             detail="Invalid sampling rate detected in audio header.",
         )
 
-    # Multi-channel handling
     if audio_data.ndim == 1:
         channels = 1
         mono_audio = audio_data.astype(np.float32)
@@ -55,7 +52,6 @@ def validate_and_decode_wav(raw_bytes: bytes) -> tuple[np.ndarray, int, int]:
             detail=f"Unsupported audio channel dimensions: {audio_data.ndim}",
         )
 
-    # Convert integer types to [-1.0, 1.0] range
     if audio_data.dtype == np.int16:
         mono_audio /= 32768.0
     elif audio_data.dtype == np.int32:

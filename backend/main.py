@@ -111,10 +111,11 @@ if str(backend_dir) not in sys.path:
 try:
     from services.audio_validator import validate_and_decode_wav
     from services.feature_extractor import extract_acoustic_features
+    from services.detector import detect_synthetic_voice
 except ImportError:
     from backend.services.audio_validator import validate_and_decode_wav
     from backend.services.feature_extractor import extract_acoustic_features
-
+    from backend.services.detector import detect_synthetic_voice
 
 
 @app.get("/")
@@ -128,7 +129,7 @@ def read_root():
 
 @app.post("/api/v1/analyze")
 async def analyze_audio(file: UploadFile = File(...)):
-    filename = file.filename or "unknown.wav"
+    filename = file.filename or "audio_sample.wav"
     extension = Path(filename).suffix.lower()
 
     if extension not in SUPPORTED_EXTENSIONS:
@@ -137,7 +138,6 @@ async def analyze_audio(file: UploadFile = File(...)):
             detail="Unsupported audio format. Please upload a .wav or .wave file.",
         )
 
-    # Read uploaded file content into memory for validation & acoustic processing
     contents = await file.read()
     if not contents:
         raise HTTPException(
@@ -145,19 +145,29 @@ async def analyze_audio(file: UploadFile = File(...)):
             detail="The uploaded audio file is empty.",
         )
 
-    # Validate WAV structure and decode into normalized mono float32
+    # Decode and validate audio stream
     audio, sample_rate, channels = validate_and_decode_wav(contents)
 
-    # Extract forensic acoustic parameters
+    # Extract forensic acoustic features
     features = extract_acoustic_features(audio, sample_rate=sample_rate, channels=channels)
+
+    # Run multi-heuristic deepfake detection engine
+    detection = detect_synthetic_voice(
+        audio=audio,
+        sample_rate=sample_rate,
+        pitch_jitter=features.pitch_jitter,
+        shimmer=features.shimmer,
+        spectral_flatness=features.spectral_flatness,
+    )
 
     return {
         "filename": filename,
         "status": "completed",
-        "fake_probability": 0.0,
-        "confidence_score": 100.0,
-        "risk_level": "LOW_RISK",
-        "indicators": [],
+        "fake_probability": detection.fake_probability,
+        "confidence_score": detection.confidence_score,
+        "risk_level": detection.risk_level,
+        "indicators": detection.indicators,
         "features": features.model_dump(),
+        "breakdown": detection.breakdown.model_dump(),
     }
 

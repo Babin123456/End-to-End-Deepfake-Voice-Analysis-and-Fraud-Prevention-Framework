@@ -13,14 +13,11 @@ def extract_acoustic_features(audio: np.ndarray, sample_rate: int, channels: int
     """
     duration = float(len(audio)) / float(sample_rate)
 
-    # 1. Zero Crossing Rate
     signs = np.signbit(audio)
     zcr = float(np.mean(signs[:-1] != signs[1:]))
 
-    # 2. RMS Energy
     rms_energy = float(np.sqrt(np.mean(audio ** 2)))
 
-    # 3. Spectral Analysis via Short-Time Fourier Transform
     nperseg = min(1024, max(64, len(audio)))
     noverlap = nperseg // 2
 
@@ -35,27 +32,23 @@ def extract_acoustic_features(audio: np.ndarray, sample_rate: int, channels: int
     mag_spec = np.abs(zxx) + 1e-10
     power_spec = mag_spec ** 2
 
-    # Spectral Centroid
     freq_grid = freqs[:, np.newaxis]
     total_energy = np.sum(mag_spec, axis=0)
     frame_centroids = np.sum(freq_grid * mag_spec, axis=0) / total_energy
     spectral_centroid = float(np.mean(frame_centroids))
 
-    # Spectral Rolloff (85% cutoff threshold)
     cumsum_power = np.cumsum(power_spec, axis=0)
     total_power = cumsum_power[-1:, :]
     rolloff_mask = cumsum_power >= (0.85 * total_power)
     rolloff_indices = np.argmax(rolloff_mask, axis=0)
     spectral_rolloff = float(np.mean(freqs[rolloff_indices]))
 
-    # Spectral Flatness
     eps = 1e-10
     log_power = np.log(power_spec + eps)
     geom_mean = np.exp(np.mean(log_power, axis=0))
     arith_mean = np.mean(power_spec, axis=0) + eps
     spectral_flatness = float(np.mean(geom_mean / arith_mean))
 
-    # 4. Fundamental Frequency (F0), Jitter, and Shimmer
     f0_mean, jitter, shimmer = _estimate_pitch_and_perturbation(audio, sample_rate)
 
     return AcousticFeatures(
@@ -76,14 +69,10 @@ def extract_acoustic_features(audio: np.ndarray, sample_rate: int, channels: int
 def _estimate_pitch_and_perturbation(
     audio: np.ndarray, sample_rate: int
 ) -> tuple[float | None, float | None, float | None]:
-    """
-    Estimates F0 (pitch), Jitter (frequency perturbation), and Shimmer
-    (amplitude perturbation) using normalized autocorrelation.
-    """
-    frame_len = int(0.04 * sample_rate)  # 40ms frame
-    hop_len = int(0.02 * sample_rate)    # 20ms hop
-    min_lag = max(1, int(sample_rate / 500))  # Max 500 Hz
-    max_lag = min(frame_len - 1, int(sample_rate / 70))   # Min 70 Hz
+    frame_len = int(0.04 * sample_rate)
+    hop_len = int(0.02 * sample_rate)
+    min_lag = max(1, int(sample_rate / 500))
+    max_lag = min(frame_len - 1, int(sample_rate / 70))
 
     if len(audio) < frame_len or max_lag <= min_lag:
         return None, None, None

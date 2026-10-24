@@ -14,22 +14,3 @@ class AcousticFeatures(BaseModel):
     fundamental_frequency_hz: Optional[float] = Field(None, description="Estimated average pitch (F0) in Hz")
     pitch_jitter: Optional[float] = Field(None, description="Cycle-to-cycle pitch period variation")
     shimmer: Optional[float] = Field(None, description="Cycle-to-cycle amplitude perturbation")
-
-
-class AudioValidationReport(BaseModel):
-    is_valid: bool = Field(..., description="Whether the audio file is structurally valid")
-    sample_rate: int = Field(..., description="Detected sampling rate in Hz")
-    duration_seconds: float = Field(..., description="Audio duration in seconds")
-    channels: int = Field(..., description="Audio channel count")
-    clipping_ratio: float = Field(0.0, description="Fraction of samples reaching maximum amplitude")
-    detail: Optional[str] = Field(None, description="Validation diagnostic detail")
-
-
-class AudioAnalysisResponse(BaseModel):
-    filename: str
-    status: str
-    fake_probability: float
-    confidence_score: float
-    risk_level: str
-    indicators: list[str] = Field(default_factory=list)
-    features: AcousticFeatures
