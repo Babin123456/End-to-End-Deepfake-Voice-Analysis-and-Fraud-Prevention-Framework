@@ -6,28 +6,13 @@ import ScanHistoryDrawer from "../components/ScanHistoryDrawer";
 import ExportReportModal from "../components/ExportReportModal";
 import { useScanHistory, ScanHistoryItem } from "../hooks/useScanHistory";
 
-type AnalysisResult = {
-  filename?: string;
-  status?: string;
-  fake_probability?: number;
-  [key: string]: unknown;
-};
-
-const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
 
-function formatBytes(bytes: number) {
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 export default function Home() {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [file, setFile] = useState<File | null>(null);
-  const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [currentFileName, setCurrentFileName] = useState<string>("");
 
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
@@ -68,6 +53,7 @@ export default function Home() {
     setLoading(true);
     setError("");
     setResult(null);
+    setCurrentFileName(file.name);
 
     const body = new FormData();
     body.append("file", file);
@@ -77,11 +63,13 @@ export default function Home() {
         method: "POST",
         body,
       });
+
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
         const detail = payload && typeof payload.detail === "string" ? payload.detail : "";
         throw new Error(detail || `Analysis failed (HTTP ${response.status}).`);
       }
+
       if (!payload || typeof payload !== "object") {
         throw new Error("The server returned an unexpected response.");
       }
@@ -133,8 +121,12 @@ export default function Home() {
 
       <section className="hero">
         <p className="eyebrow">DEEPFAKE VOICE DETECTION</p>
-        <h1>Is this voice <span>really real?</span></h1>
-        <p className="hero-copy">Upload an audio recording to check it for signs of synthetic or manipulated speech.</p>
+        <h1>
+          Is this voice <span>really real?</span>
+        </h1>
+        <p className="hero-copy">
+          Upload an audio recording to check it for signs of synthetic or manipulated speech.
+        </p>
       </section>
 
       <section className="workspace" aria-label="Audio analysis">
