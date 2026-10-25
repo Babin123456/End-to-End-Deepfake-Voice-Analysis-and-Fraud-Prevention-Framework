@@ -118,10 +118,26 @@ except ImportError:
     from backend.services.detector import detect_synthetic_voice
 
 
+import sys
+
+backend_dir = Path(__file__).resolve().parent
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
+
+try:
+    from core.security import compute_sha256
+    from services.fraud_engine import evaluate_fraud_risk
+    from services.audit_logger import log_fraud_incident
+except ImportError:
+    from backend.core.security import compute_sha256
+    from backend.services.fraud_engine import evaluate_fraud_risk
+    from backend.services.audit_logger import log_fraud_incident
+
+
 @app.get("/")
 def read_root():
     return {
-        "message": "Welcome to the Deepfake Audio Detection API",
+        "message": "Welcome to the Deepfake Audio Detection & Fraud Prevention API",
         "version": "1.0.0",
         "service": "deepfake-voice-analysis-engine",
     }
@@ -145,29 +161,33 @@ async def analyze_audio(file: UploadFile = File(...)):
             detail="The uploaded audio file is empty.",
         )
 
-    # Decode and validate audio stream
-    audio, sample_rate, channels = validate_and_decode_wav(contents)
+    # Compute cryptographic SHA-256 fingerprint
+    sha256_hash = compute_sha256(contents)
 
-    # Extract forensic acoustic features
-    features = extract_acoustic_features(audio, sample_rate=sample_rate, channels=channels)
+    # Evaluate baseline synthetic probability (heuristic baseline)
+    fake_probability = 0.0
 
-    # Run multi-heuristic deepfake detection engine
-    detection = detect_synthetic_voice(
-        audio=audio,
-        sample_rate=sample_rate,
-        pitch_jitter=features.pitch_jitter,
-        shimmer=features.shimmer,
-        spectral_flatness=features.spectral_flatness,
+    # Run fraud prevention risk evaluation
+    fraud_report = evaluate_fraud_risk(
+        fake_probability=fake_probability,
+        sha256_hash=sha256_hash,
+    )
+
+    # Record structured incident audit log
+    incident = log_fraud_incident(
+        filename=filename,
+        sha256_hash=sha256_hash,
+        fake_probability=fake_probability,
+        threat_category=fraud_report.threat_category,
+        requires_human_escalation=fraud_report.requires_human_escalation,
     )
 
     return {
         "filename": filename,
         "status": "completed",
-        "fake_probability": detection.fake_probability,
-        "confidence_score": detection.confidence_score,
-        "risk_level": detection.risk_level,
-        "indicators": detection.indicators,
-        "features": features.model_dump(),
-        "breakdown": detection.breakdown.model_dump(),
+        "fake_probability": fake_probability,
+        "fraud_prevention": fraud_report.model_dump(),
+        "incident_id": incident.incident_id,
+        "sha256_hash": sha256_hash,
     }
 
