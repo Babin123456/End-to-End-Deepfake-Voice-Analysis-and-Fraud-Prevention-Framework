@@ -16,15 +16,7 @@ type InputMode = "upload" | "record" | "samples";
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
 
-function formatBytes(bytes: number) {
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 export default function Home() {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [file, setFile] = useState<File | null>(null);
-  const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -62,6 +54,7 @@ export default function Home() {
     setLoading(true);
     setError("");
     setResult(null);
+    setCurrentFileName(file.name);
 
     const body = new FormData();
     body.append("file", fileToAnalyze);
@@ -71,14 +64,17 @@ export default function Home() {
         method: "POST",
         body,
       });
+
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
         const detail = payload && typeof payload.detail === "string" ? payload.detail : "";
         throw new Error(detail || `Analysis failed (HTTP ${response.status}).`);
       }
+
       if (!payload || typeof payload !== "object") {
         throw new Error("The server returned an unexpected response.");
       }
+
       setResult(payload as AnalysisResult);
     } catch (caught) {
       setError(
@@ -113,13 +109,7 @@ export default function Home() {
 
   return (
     <main className="analysis-shell">
-      <header className="topbar">
-        <a className="brand" href="/" aria-label="VoxShield home">
-          <span className="brand-mark" aria-hidden="true">V</span>
-          <span>VoxShield<span className="brand-dot">.</span></span>
-        </a>
-        <span className="topbar-note"><span className="status-dot" /> Audio integrity analysis</span>
-      </header>
+      <Navbar />
 
       <section className="hero">
         <p className="eyebrow">DEEPFAKE VOICE DETECTION</p>
@@ -258,7 +248,10 @@ export default function Home() {
         </aside>
       </section>
 
-      <footer className="page-footer"><span>VOXSHIELD · AUDIO FORENSICS</span><span>Supported format: WAV / WAVE</span></footer>
+      <footer className="page-footer">
+        <span>VOXSHIELD · AUDIO FORENSICS</span>
+        <span>Supported format: WAV / WAVE</span>
+      </footer>
     </main>
   );
 }

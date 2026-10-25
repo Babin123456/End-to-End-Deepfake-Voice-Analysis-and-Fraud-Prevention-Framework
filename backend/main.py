@@ -1,27 +1,29 @@
 from pathlib import Path
 import json
-import os
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
+from api.v1.health import router as health_router
+from core.config import get_settings
+
 app = FastAPI(title="Deepfake Audio Detection API")
 
-frontend_origin = os.getenv("FRONTEND_ORIGIN")
-allowed_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
-if frontend_origin:
-    allowed_origins.append(frontend_origin.rstrip("/"))
+settings = get_settings()
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_methods=["POST", "OPTIONS"],
+    allow_origins=settings.cors_origins,
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
 SUPPORTED_EXTENSIONS = {".wav", ".wave"}
-MAX_UPLOAD_SIZE = 25 * 1024 * 1024
-UPLOAD_CHUNK_SIZE = 1024 * 1024
-UPLOAD_TOO_LARGE_DETAIL = "Upload is too large. Maximum request size is 25 MB."
+MAX_UPLOAD_SIZE = settings.max_upload_size
+UPLOAD_CHUNK_SIZE = settings.upload_chunk_size
+UPLOAD_TOO_LARGE_DETAIL = (
+    f"Upload is too large. Maximum request size is {MAX_UPLOAD_SIZE // (1024 * 1024)} MB."
+)
 
 
 class UploadSizeLimitMiddleware:
@@ -97,16 +99,37 @@ class _UploadTooLarge(Exception):
 
 
 app.add_middleware(UploadSizeLimitMiddleware)
+app.include_router(health_router, prefix="/api/v1")
+
+
+import sys
+
+backend_dir = Path(__file__).resolve().parent
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
+
+try:
+    from services.audio_validator import validate_and_decode_wav
+    from services.feature_extractor import extract_acoustic_features
+    from services.detector import detect_synthetic_voice
+except ImportError:
+    from backend.services.audio_validator import validate_and_decode_wav
+    from backend.services.feature_extractor import extract_acoustic_features
+    from backend.services.detector import detect_synthetic_voice
 
 
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to the Deepfake Audio Detection API"}
+    return {
+        "message": "Welcome to the Deepfake Audio Detection API",
+        "version": "1.0.0",
+        "service": "deepfake-voice-analysis-engine",
+    }
 
 
 @app.post("/api/v1/analyze")
 async def analyze_audio(file: UploadFile = File(...)):
-    filename = file.filename or ""
+    filename = file.filename or "audio_sample.wav"
     extension = Path(filename).suffix.lower()
 
     if extension not in SUPPORTED_EXTENSIONS:
@@ -115,14 +138,36 @@ async def analyze_audio(file: UploadFile = File(...)):
             detail="Unsupported audio format. Please upload a .wav or .wave file.",
         )
 
-    # The middleware enforces the request limit while bytes are arriving.
-    # Read in bounded chunks so the endpoint never loads the full file at once.
-    while await file.read(UPLOAD_CHUNK_SIZE):
-        pass
+    contents = await file.read()
+    if not contents:
+        raise HTTPException(
+            status_code=400,
+            detail="The uploaded audio file is empty.",
+        )
 
-    # TODO: ML Contributors will integrate the PyTorch inference here.
+    # Decode and validate audio stream
+    audio, sample_rate, channels = validate_and_decode_wav(contents)
+
+    # Extract forensic acoustic features
+    features = extract_acoustic_features(audio, sample_rate=sample_rate, channels=channels)
+
+    # Run multi-heuristic deepfake detection engine
+    detection = detect_synthetic_voice(
+        audio=audio,
+        sample_rate=sample_rate,
+        pitch_jitter=features.pitch_jitter,
+        shimmer=features.shimmer,
+        spectral_flatness=features.spectral_flatness,
+    )
+
     return {
         "filename": filename,
-        "status": "processing",
-        "fake_probability": 0.0,
+        "status": "completed",
+        "fake_probability": detection.fake_probability,
+        "confidence_score": detection.confidence_score,
+        "risk_level": detection.risk_level,
+        "indicators": detection.indicators,
+        "features": features.model_dump(),
+        "breakdown": detection.breakdown.model_dump(),
     }
+
