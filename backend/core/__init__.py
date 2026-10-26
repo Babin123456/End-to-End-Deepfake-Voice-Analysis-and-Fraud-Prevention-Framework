@@ -1,1 +1,1 @@
-"""Core configurations and forensic constants."""
+"""Core security and configuration utilities."""
