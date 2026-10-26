@@ -1,6 +1,10 @@
 "use client";
 
 import { ChangeEvent, DragEvent, FormEvent, useRef, useState } from "react";
+import Navbar from "../components/Navbar";
+import ScanHistoryDrawer from "../components/ScanHistoryDrawer";
+import ExportReportModal from "../components/ExportReportModal";
+import { useScanHistory, ScanHistoryItem } from "../hooks/useScanHistory";
 import LiveVoiceRecorder from "../components/LiveVoiceRecorder";
 import SampleAudioPlayground from "../components/SampleAudioPlayground";
 
@@ -17,10 +21,18 @@ const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
 
 export default function Home() {
+  const [file, setFile] = useState<File | null>(null);
+  const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [activeTab, setActiveTab] = useState<InputMode>("upload");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // History & Export States
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
+  const { history, saveItem, removeItem, clearHistory } = useScanHistory();
 
   function selectFile(candidate?: File) {
     setError("");
@@ -54,7 +66,6 @@ export default function Home() {
     setLoading(true);
     setError("");
     setResult(null);
-    setCurrentFileName(file.name);
 
     const body = new FormData();
     body.append("file", fileToAnalyze);
@@ -75,7 +86,17 @@ export default function Home() {
         throw new Error("The server returned an unexpected response.");
       }
 
-      setResult(payload as AnalysisResult);
+      const res = payload as AnalysisResult;
+      setResult(res);
+
+      // Save to audit history
+      saveItem({
+        filename: res.filename || fileToAnalyze.name,
+        fake_probability: typeof res.fake_probability === "number" ? res.fake_probability : 0.0,
+        risk_level: (typeof res.risk_level === "string" ? res.risk_level : "ANALYZED"),
+        status: (typeof res.status === "string" ? res.status : "completed"),
+        details: res,
+      });
     } catch (caught) {
       setError(
         caught instanceof TypeError
@@ -88,6 +109,18 @@ export default function Home() {
       setLoading(false);
     }
   }
+
+  const handleSelectHistoryScan = (item: ScanHistoryItem) => {
+    if (item.details) {
+      setResult(item.details as AnalysisResult);
+    } else {
+      setResult({
+        filename: item.filename,
+        fake_probability: item.fake_probability,
+        status: item.status,
+      });
+    }
+  };
 
   async function handleUploadSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -109,7 +142,10 @@ export default function Home() {
 
   return (
     <main className="analysis-shell">
-      <Navbar />
+      <Navbar
+        historyCount={history.length}
+        onOpenHistory={() => setIsHistoryOpen(true)}
+      />
 
       <section className="hero">
         <p className="eyebrow">DEEPFAKE VOICE DETECTION</p>
@@ -170,7 +206,7 @@ export default function Home() {
                     <div className="audio-icon selected-icon" aria-hidden="true">♫</div>
                     <div className="selected-file">
                       <strong>{file.name}</strong>
-                      <span>{formatBytes(file.size)} · Ready to analyze</span>
+                      <span>{(file.size / (1024 * 1024)).toFixed(2)} MB · Ready to analyze</span>
                     </div>
                     <button className="change-file" type="button" onClick={() => inputRef.current?.click()}>Change</button>
                   </>
@@ -232,7 +268,22 @@ export default function Home() {
             </div>
           ) : result ? (
             <div className="report-content">
-              <div className="report-file"><span className="mini-audio">♫</span><div><strong>{result.filename || file?.name || "Audio file"}</strong><span>Server response received</span></div></div>
+              <div className="report-file">
+                <span className="mini-audio">♫</span>
+                <div>
+                  <strong>{result.filename || file?.name || "Audio file"}</strong>
+                  <span>Server response received</span>
+                </div>
+                <button
+                  type="button"
+                  className="export-trigger-btn"
+                  onClick={() => setIsExportOpen(true)}
+                  aria-label="Export forensic report"
+                >
+                  Export Case ↓
+                </button>
+              </div>
+
               {probability !== null ? (
                 <div className="probability-block">
                   <div className="probability-top"><span>Fake voice probability</span><strong>{(probability * 100).toFixed(1)}%</strong></div>
@@ -241,6 +292,7 @@ export default function Home() {
               ) : (
                 <div className="response-note"><strong>Analysis status</strong><span>{result.status || "The API returned a result."}</span></div>
               )}
+
               <details className="raw-response"><summary>View full API response</summary><pre>{JSON.stringify(result, null, 2)}</pre></details>
             </div>
           ) : null}
@@ -248,10 +300,24 @@ export default function Home() {
         </aside>
       </section>
 
-      <footer className="page-footer">
-        <span>VOXSHIELD · AUDIO FORENSICS</span>
-        <span>Supported format: WAV / WAVE</span>
-      </footer>
+      <footer className="page-footer"><span>VOXSHIELD · AUDIO FORENSICS</span><span>Supported format: WAV / WAVE</span></footer>
+
+      <ScanHistoryDrawer
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+        history={history}
+        onSelectScan={handleSelectHistoryScan}
+        onClearHistory={clearHistory}
+        onRemoveItem={removeItem}
+      />
+
+      {result && (
+        <ExportReportModal
+          isOpen={isExportOpen}
+          onClose={() => setIsExportOpen(false)}
+          reportData={result as Record<string, unknown>}
+        />
+      )}
     </main>
   );
 }
