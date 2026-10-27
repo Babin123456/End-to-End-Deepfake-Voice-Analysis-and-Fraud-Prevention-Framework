@@ -1,18 +1,52 @@
 "use client";
 
 import React from "react";
-import { AnalysisResult } from "../types/analysis";
+import AudioPlayer from "./AudioPlayer";
+import ForensicMetricsGrid from "./ForensicMetricsGrid";
+import FraudAdvisoryPanel from "./FraudAdvisoryPanel";
+import ForensicIndicatorList from "./ForensicIndicatorList";
+
+type ForensicBreakdownType = {
+  spectral_consistency?: number;
+  pitch_naturalness?: number;
+  vocoder_artifact_score?: number;
+};
+
+type FraudAdvisoryType = {
+  sha256_hash?: string;
+  impersonation_threat_score?: number;
+  threat_category?: string;
+  requires_human_escalation?: boolean;
+  advisory_actions?: {
+    action_type: string;
+    description: string;
+    severity: string;
+  }[];
+};
 
 interface AnalysisReportCardProps {
-  result: AnalysisResult | null;
+  result: {
+    filename?: string;
+    status?: string;
+    fake_probability?: number;
+    confidence_score?: number;
+    risk_level?: string;
+    indicators?: string[];
+    breakdown?: ForensicBreakdownType;
+    fraud_prevention?: FraudAdvisoryType;
+    sha256_hash?: string;
+    [key: string]: unknown;
+  } | null;
   loading: boolean;
-  selectedFileName?: string;
+  file?: File | null;
+  onExport?: () => void;
 }
 
 export default function AnalysisReportCard({
   result,
   loading,
-  selectedFileName,
+  file,
+  onExport,
 }: AnalysisReportCardProps) {
   const probability =
     result && typeof result.fake_probability === "number"
@@ -41,10 +75,7 @@ export default function AnalysisReportCard({
             <span>〰</span>
           </div>
           <strong>Your report will appear here</strong>
-          <p>
-            Choose a WAV file and run the analysis to see the response from the
-            detection API.
-          </p>
+          <p>Choose or record a WAV sample to inspect its forensic authenticity metrics.</p>
         </div>
       )}
 
@@ -58,7 +89,7 @@ export default function AnalysisReportCard({
             <span />
           </div>
           <strong>Listening for signals…</strong>
-          <p>Your audio is being sent to the backend for analysis.</p>
+          <p>Audio waveform is being evaluated by the detection model.</p>
         </div>
       )}
 
@@ -67,10 +98,27 @@ export default function AnalysisReportCard({
           <div className="report-file">
             <span className="mini-audio">♫</span>
             <div>
-              <strong>{result.filename || selectedFileName || "Audio file"}</strong>
+              <strong>{result.filename || file?.name || "Audio file"}</strong>
               <span>Server response received</span>
             </div>
+            {onExport && (
+              <button
+                type="button"
+                className="export-trigger-btn"
+                onClick={onExport}
+                aria-label="Export forensic report"
+              >
+                Export Case ↓
+              </button>
+            )}
           </div>
+
+          {/* Integrated Audio Playback & Waveform Preview */}
+          {file && (
+            <div className="report-audio-player-wrapper">
+              <AudioPlayer file={file} />
+            </div>
+          )}
 
           {probability !== null ? (
             <div className="probability-block">
@@ -92,6 +140,18 @@ export default function AnalysisReportCard({
               <span>{result.status || "The API returned a result."}</span>
             </div>
           )}
+
+          <ForensicMetricsGrid breakdown={result.breakdown} />
+
+          <ForensicIndicatorList
+            indicators={result.indicators}
+            riskLevel={result.risk_level}
+          />
+
+          <FraudAdvisoryPanel
+            fraudData={result.fraud_prevention}
+            fakeProbability={result.fake_probability}
+          />
 
           <details className="raw-response">
             <summary>View full API response</summary>

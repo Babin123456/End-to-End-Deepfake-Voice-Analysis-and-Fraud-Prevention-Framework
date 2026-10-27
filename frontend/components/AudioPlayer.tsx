@@ -5,7 +5,7 @@ import { useAudioVisualizer } from "../hooks/useAudioVisualizer";
 import WaveformVisualizer from "./WaveformVisualizer";
 
 interface AudioPlayerProps {
-  file: File;
+  file: File | null;
 }
 
 function formatTime(seconds: number): string {
@@ -19,6 +19,8 @@ export default function AudioPlayer({ file }: AudioPlayerProps) {
   const { isPlaying, currentTime, duration, togglePlay, seek } = useAudioVisualizer(file);
   const progress = duration > 0 ? currentTime / duration : 0;
 
+  if (!file) return null;
+
   return (
     <div className="audio-preview-box" role="region" aria-label="Audio sample player">
       <div className="audio-preview-top">
@@ -26,13 +28,13 @@ export default function AudioPlayer({ file }: AudioPlayerProps) {
           type="button"
           className="play-toggle-btn"
           onClick={togglePlay}
-          aria-label={isPlaying ? "Pause audio" : "Play audio"}
+          aria-label={isPlaying ? "Pause audio playback" : "Start audio playback"}
         >
           {isPlaying ? "❚❚" : "▶"}
         </button>
 
         <div className="preview-meta">
-          <span className="preview-label">Audio Playback Preview</span>
+          <span className="preview-label">Playback Preview · {file.name}</span>
           <span className="preview-timer">
             {formatTime(currentTime)} / {formatTime(duration)}
           </span>
@@ -44,7 +46,7 @@ export default function AudioPlayer({ file }: AudioPlayerProps) {
       <input
         type="range"
         min={0}
-        max={duration || 100}
+        max={duration > 0 ? duration : 100}
         step={0.01}
         value={currentTime}
         onChange={(e) => seek(parseFloat(e.target.value))}
