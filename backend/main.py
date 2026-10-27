@@ -18,7 +18,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-SUPPORTED_EXTENSIONS = {".wav", ".wave"}
+SUPPORTED_EXTENSIONS = {".wav", ".wave", ".mp3", ".ogg", ".flac", ".m4a", ".aac"}
 MAX_UPLOAD_SIZE = settings.max_upload_size
 UPLOAD_CHUNK_SIZE = settings.upload_chunk_size
 UPLOAD_TOO_LARGE_DETAIL = (
@@ -109,11 +109,11 @@ if str(backend_dir) not in sys.path:
     sys.path.insert(0, str(backend_dir))
 
 try:
-    from services.audio_validator import validate_and_decode_wav
+    from services.audio_validator import validate_and_decode_wav, validate_and_decode_audio
     from services.feature_extractor import extract_acoustic_features
     from services.detector import detect_synthetic_voice
 except ImportError:
-    from backend.services.audio_validator import validate_and_decode_wav
+    from backend.services.audio_validator import validate_and_decode_wav, validate_and_decode_audio
     from backend.services.feature_extractor import extract_acoustic_features
     from backend.services.detector import detect_synthetic_voice
 
@@ -151,7 +151,7 @@ async def analyze_audio(file: UploadFile = File(...)):
     if extension not in SUPPORTED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
-            detail="Unsupported audio format. Please upload a .wav or .wave file.",
+            detail="Unsupported audio format. Supported formats: WAV, MP3, OGG, FLAC, M4A.",
         )
 
     contents = await file.read()
@@ -160,6 +160,10 @@ async def analyze_audio(file: UploadFile = File(...)):
             status_code=400,
             detail="The uploaded audio file is empty.",
         )
+
+    # Decode and validate audio payload (multi-format support)
+    audio, sample_rate, channels, format_name = validate_and_decode_audio(contents, filename=filename)
+
 
     # Compute cryptographic SHA-256 fingerprint
     sha256_hash = compute_sha256(contents)

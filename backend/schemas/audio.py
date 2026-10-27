@@ -14,3 +14,12 @@ class AcousticFeatures(BaseModel):
     fundamental_frequency_hz: Optional[float] = Field(None, description="Estimated average pitch (F0) in Hz")
     pitch_jitter: Optional[float] = Field(None, description="Cycle-to-cycle pitch period variation")
     shimmer: Optional[float] = Field(None, description="Cycle-to-cycle amplitude perturbation")
+
+
+class AudioFormatMetadata(BaseModel):
+    format_name: str = Field(..., description="Detected container format (e.g., wav, mp3, ogg, flac, m4a)")
+    mime_type: str = Field(..., description="Canonical MIME type")
+    sample_rate: int = Field(..., description="Decoded sampling rate in Hz")
+    channels: int = Field(..., description="Decoded audio channel count")
+    duration_seconds: float = Field(..., description="Duration in seconds")
+
