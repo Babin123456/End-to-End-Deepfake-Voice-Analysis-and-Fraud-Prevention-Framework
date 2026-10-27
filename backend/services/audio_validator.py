@@ -4,7 +4,7 @@ from scipy.io import wavfile
 from fastapi import HTTPException
 
 
-MIN_DURATION_SECONDS = 0.25
+MIN_DURATION_SECONDS = 0.1
 MAX_DURATION_SECONDS = 300.0
 
 
