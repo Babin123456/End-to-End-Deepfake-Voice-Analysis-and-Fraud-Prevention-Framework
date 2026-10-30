@@ -17,7 +17,7 @@ export default function WaveformVisualizer({ isPlaying, progress }: WaveformVisu
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const barCount = 42;
+    const barCount = 48;
     let phase = 0;
 
     const render = () => {
@@ -28,23 +28,27 @@ export default function WaveformVisualizer({ isPlaying, progress }: WaveformVisu
 
       for (let i = 0; i < barCount; i++) {
         const x = i * (barWidth + 2);
-        // Procedural pseudo-waveform envelope with sinusoidal modulation when playing
-        const baseHeight = Math.sin((i / barCount) * Math.PI) * (height * 0.75) + 6;
+        // Harmonic waveform contour
+        const envelope = Math.sin((i / barCount) * Math.PI) * (height * 0.72) + 6;
         const dynamicFactor = isPlaying
-          ? Math.sin(phase + i * 0.35) * 0.35 + 0.65
-          : 0.5;
-        const currentBarHeight = Math.max(4, baseHeight * dynamicFactor);
+          ? Math.sin(phase + i * 0.3) * 0.35 + 0.65
+          : 0.45;
+        const currentBarHeight = Math.max(4, envelope * dynamicFactor);
         const y = (height - currentBarHeight) / 2;
 
         const isPlayed = i / barCount <= progress;
-        ctx.fillStyle = isPlayed ? "#8ee2b8" : "#2a3945";
+        ctx.fillStyle = isPlayed ? "#8ee2b8" : "#223545";
         ctx.beginPath();
-        ctx.roundRect(x, y, barWidth, currentBarHeight, 2);
+        if (typeof ctx.roundRect === "function") {
+          ctx.roundRect(x, y, Math.max(1, barWidth), currentBarHeight, 2);
+        } else {
+          ctx.rect(x, y, Math.max(1, barWidth), currentBarHeight);
+        }
         ctx.fill();
       }
 
       if (isPlaying) {
-        phase += 0.15;
+        phase += 0.18;
       }
       animFrameRef.current = requestAnimationFrame(render);
     };
@@ -60,7 +64,7 @@ export default function WaveformVisualizer({ isPlaying, progress }: WaveformVisu
 
   return (
     <div className="waveform-container" aria-label="Audio waveform visualizer">
-      <canvas ref={canvasRef} width={360} height={46} className="waveform-canvas" />
+      <canvas ref={canvasRef} width={420} height={48} className="waveform-canvas" />
     </div>
   );
 }
