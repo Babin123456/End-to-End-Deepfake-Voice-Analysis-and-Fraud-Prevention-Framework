@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api.v1.batch import router as batch_router
 from api.v1.health import router as health_router
+from api.v1.incidents import router as incidents_router
 from core.config import get_settings
 
 app = FastAPI(title="Deepfake Audio Detection API")
@@ -111,29 +112,21 @@ if str(backend_dir) not in sys.path:
     sys.path.insert(0, str(backend_dir))
 
 try:
-    from services.audio_validator import validate_and_decode_wav
-    from services.feature_extractor import extract_acoustic_features
-    from services.detector import detect_synthetic_voice
-except ImportError:
-    from backend.services.audio_validator import validate_and_decode_wav
-    from backend.services.feature_extractor import extract_acoustic_features
-    from backend.services.detector import detect_synthetic_voice
-
-
-import sys
-
-backend_dir = Path(__file__).resolve().parent
-if str(backend_dir) not in sys.path:
-    sys.path.insert(0, str(backend_dir))
-
-try:
     from core.security import compute_sha256
-    from services.fraud_engine import evaluate_fraud_risk
+    from schemas.detection import AnalysisResponse
+    from services.audio_validator import validate_and_decode_wav
     from services.audit_logger import log_fraud_incident
+    from services.detector import detect_synthetic_voice
+    from services.feature_extractor import extract_acoustic_features
+    from services.fraud_engine import evaluate_fraud_risk
 except ImportError:
     from backend.core.security import compute_sha256
-    from backend.services.fraud_engine import evaluate_fraud_risk
+    from backend.schemas.detection import AnalysisResponse
+    from backend.services.audio_validator import validate_and_decode_wav
     from backend.services.audit_logger import log_fraud_incident
+    from backend.services.detector import detect_synthetic_voice
+    from backend.services.feature_extractor import extract_acoustic_features
+    from backend.services.fraud_engine import evaluate_fraud_risk
 
 
 @app.get("/")
@@ -145,7 +138,7 @@ def read_root():
     }
 
 
-@app.post("/api/v1/analyze")
+@app.post("/api/v1/analyze", response_model=AnalysisResponse)
 async def analyze_audio(file: UploadFile = File(...)):
     filename = file.filename or "audio_sample.wav"
     extension = Path(filename).suffix.lower()
@@ -163,33 +156,52 @@ async def analyze_audio(file: UploadFile = File(...)):
             detail="The uploaded audio file is empty.",
         )
 
-    # Compute cryptographic SHA-256 fingerprint
-    sha256_hash = compute_sha256(contents)
+    # 1. Decode and validate audio payload
+    audio, sample_rate, channels = validate_and_decode_wav(contents)
 
-    # Evaluate baseline synthetic probability (heuristic baseline)
-    fake_probability = 0.0
+    # 2. Extract forensic acoustic & spectral features
+    features = extract_acoustic_features(audio, sample_rate=sample_rate, channels=channels)
 
-    # Run fraud prevention risk evaluation
-    fraud_report = evaluate_fraud_risk(
-        fake_probability=fake_probability,
-        sha256_hash=sha256_hash,
+    # 3. Execute multi-heuristic deepfake detection engine
+    detection = detect_synthetic_voice(
+        audio=audio,
+        sample_rate=sample_rate,
+        pitch_jitter=features.pitch_jitter,
+        shimmer=features.shimmer,
+        spectral_flatness=features.spectral_flatness,
     )
 
-    # Record structured incident audit log
+    # 4. Compute cryptographic SHA-256 fingerprint
+    sha256_hash = compute_sha256(contents)
+
+    # 5. Run fraud prevention risk evaluation
+    fraud_report = evaluate_fraud_risk(
+        fake_probability=detection.fake_probability,
+        sha256_hash=sha256_hash,
+        duration_seconds=features.duration_seconds,
+    )
+
+    # 6. Record structured incident audit log
     incident = log_fraud_incident(
         filename=filename,
         sha256_hash=sha256_hash,
-        fake_probability=fake_probability,
+        fake_probability=detection.fake_probability,
         threat_category=fraud_report.threat_category,
         requires_human_escalation=fraud_report.requires_human_escalation,
     )
 
-    return {
-        "filename": filename,
-        "status": "completed",
-        "fake_probability": fake_probability,
-        "fraud_prevention": fraud_report.model_dump(),
-        "incident_id": incident.incident_id,
-        "sha256_hash": sha256_hash,
-    }
+    return AnalysisResponse(
+        filename=filename,
+        status="completed",
+        fake_probability=detection.fake_probability,
+        confidence_score=detection.confidence_score,
+        risk_level=detection.risk_level,
+        indicators=detection.indicators,
+        breakdown=detection.breakdown,
+        features=features,
+        fraud_prevention=fraud_report,
+        incident_id=incident.incident_id,
+        sha256_hash=sha256_hash,
+    )
+
 

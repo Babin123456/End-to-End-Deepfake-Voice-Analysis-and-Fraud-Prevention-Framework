@@ -204,6 +204,94 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .load-sample-btn:hover { background: #193144; }
 
 /* ========================================================================= */
+/* Audio Player & Waveform Visualizer Styles                                */
+/* ========================================================================= */
+.report-audio-player-wrapper {
+  margin: 14px 0 16px;
+  padding: 12px;
+  background: rgba(14, 23, 33, 0.85);
+  border: 1px solid #223747;
+  border-radius: 10px;
+}
+.audio-preview-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.audio-preview-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.play-toggle-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid #3d5a70;
+  background: #172a3a;
+  color: #8ee2b8;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+.play-toggle-btn:hover {
+  background: #20394f;
+  border-color: #8ee2b8;
+  transform: scale(1.05);
+}
+.preview-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.preview-label {
+  font-size: 11px;
+  color: #9ab0c2;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.preview-timer {
+  font-size: 11px;
+  font-family: monospace;
+  color: #8ee2b8;
+  font-weight: 700;
+}
+.waveform-container {
+  width: 100%;
+  height: 48px;
+  background: #081018;
+  border-radius: 6px;
+  border: 1px solid #1a2c3b;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.waveform-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.audio-scrubber {
+  width: 100%;
+  height: 6px;
+  accent-color: #8ee2b8;
+  cursor: pointer;
+  background: #172635;
+  border-radius: 3px;
+  outline: none;
+}
+
+
+/* ========================================================================= */
 /* Media Queries (Kept at the bottom to ensure correct overriding)           */
 /* ========================================================================= */
 @media (max-width: 850px) { .analysis-shell { padding: 0 5%; }.workspace { grid-template-columns: 1fr; }.hero { padding: 52px 0 36px; }.result-card { min-height: 420px; }.forensic-grid { grid-template-columns: 1fr; } }
