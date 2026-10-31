@@ -4,6 +4,7 @@ import json
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
+from api.v1.batch import router as batch_router
 from api.v1.health import router as health_router
 from api.v1.incidents import router as incidents_router
 from core.config import get_settings
@@ -101,7 +102,7 @@ class _UploadTooLarge(Exception):
 
 app.add_middleware(UploadSizeLimitMiddleware)
 app.include_router(health_router, prefix="/api/v1")
-app.include_router(incidents_router, prefix="/api/v1")
+app.include_router(batch_router, prefix="/api/v1")
 
 
 import sys
