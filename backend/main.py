@@ -19,7 +19,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-SUPPORTED_EXTENSIONS = {".wav", ".wave"}
+SUPPORTED_EXTENSIONS = {".wav", ".wave", ".mp3", ".ogg", ".flac", ".m4a", ".aac"}
 MAX_UPLOAD_SIZE = settings.max_upload_size
 UPLOAD_CHUNK_SIZE = settings.upload_chunk_size
 UPLOAD_TOO_LARGE_DETAIL = (
@@ -111,12 +111,23 @@ if str(backend_dir) not in sys.path:
     sys.path.insert(0, str(backend_dir))
 
 try:
-    from core.security import compute_sha256
-    from schemas.detection import AnalysisResponse
-    from services.audio_validator import validate_and_decode_wav
-    from services.audit_logger import log_fraud_incident
-    from services.detector import detect_synthetic_voice
+    from services.audio_validator import validate_and_decode_wav, validate_and_decode_audio
     from services.feature_extractor import extract_acoustic_features
+    from services.detector import detect_synthetic_voice
+except ImportError:
+    from backend.services.audio_validator import validate_and_decode_wav, validate_and_decode_audio
+    from backend.services.feature_extractor import extract_acoustic_features
+    from backend.services.detector import detect_synthetic_voice
+
+
+import sys
+
+backend_dir = Path(__file__).resolve().parent
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
+
+try:
+    from core.security import compute_sha256
     from services.fraud_engine import evaluate_fraud_risk
 except ImportError:
     from backend.core.security import compute_sha256
@@ -145,7 +156,7 @@ async def analyze_audio(file: UploadFile = File(...)):
     if extension not in SUPPORTED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
-            detail="Unsupported audio format. Please upload a .wav or .wave file.",
+            detail="Unsupported audio format. Supported formats: WAV, MP3, OGG, FLAC, M4A.",
         )
 
     contents = await file.read()
@@ -155,8 +166,12 @@ async def analyze_audio(file: UploadFile = File(...)):
             detail="The uploaded audio file is empty.",
         )
 
-    # 1. Decode and validate audio payload
-    audio, sample_rate, channels = validate_and_decode_wav(contents)
+    # Decode and validate audio payload (multi-format support)
+    audio, sample_rate, channels, format_name = validate_and_decode_audio(contents, filename=filename)
+
+
+    # Compute cryptographic SHA-256 fingerprint
+    sha256_hash = compute_sha256(contents)
 
     # 2. Extract forensic acoustic & spectral features
     features = extract_acoustic_features(audio, sample_rate=sample_rate, channels=channels)

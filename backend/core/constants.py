@@ -21,3 +21,14 @@ WEIGHT_SPECTRAL_INCOHERENCE = 0.15
 RISK_LEVEL_LOW = "LOW_RISK"
 RISK_LEVEL_SUSPICIOUS = "SUSPICIOUS"
 RISK_LEVEL_HIGH = "HIGH_RISK_DEEPFAKE"
+
+# Audio format and container definitions
+SUPPORTED_AUDIO_EXTENSIONS = {".wav", ".wave", ".mp3", ".ogg", ".flac", ".m4a", ".aac"}
+MIME_TYPE_MAPPING = {
+    "wav": "audio/wav",
+    "mp3": "audio/mpeg",
+    "ogg": "audio/ogg",
+    "flac": "audio/flac",
+    "m4a": "audio/mp4",
+}
+
