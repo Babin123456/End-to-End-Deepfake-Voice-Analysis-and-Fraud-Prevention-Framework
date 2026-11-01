@@ -60,9 +60,11 @@ export default function Home() {
     setError("");
     setResult(null);
     if (!candidate) return;
-    if (![".wav", ".wave"].includes(candidate.name.toLowerCase().slice(candidate.name.lastIndexOf(".")))) {
+    const supportedExtensions = [".wav", ".wave", ".mp3", ".ogg", ".flac", ".m4a", ".aac"];
+    const ext = candidate.name.toLowerCase().slice(candidate.name.lastIndexOf("."));
+    if (!supportedExtensions.includes(ext)) {
       setFile(null);
-      setError("Please choose a WAV audio file (.wav or .wave).");
+      setError("Unsupported audio format. Supported formats: WAV, MP3, OGG, FLAC, M4A, AAC.");
       return;
     }
     if (candidate.size > MAX_FILE_BYTES) {
@@ -219,9 +221,9 @@ export default function Home() {
                   ref={inputRef}
                   className="visually-hidden"
                   type="file"
-                  accept=".wav,.wave,audio/wav,audio/wave"
+                  accept=".wav,.wave,.mp3,.ogg,.flac,.m4a,.aac,audio/*"
                   onChange={onInputChange}
-                  aria-label="Choose WAV audio file"
+                  aria-label="Choose audio file to analyze (WAV, MP3, OGG, FLAC, M4A, AAC)"
                 />
                 {file ? (
                   <>
@@ -282,7 +284,7 @@ export default function Home() {
         />
       </section>
 
-      <footer className="page-footer"><span>VOXSHIELD · AUDIO FORENSICS</span><span>Supported format: WAV / WAVE</span></footer>
+      <footer className="page-footer"><span>VOXSHIELD · AUDIO FORENSICS</span><span>Supported formats: WAV, MP3, OGG, FLAC, M4A, AAC (up to 25 MB)</span></footer>
 
       <ScanHistoryDrawer
         isOpen={isHistoryOpen}
