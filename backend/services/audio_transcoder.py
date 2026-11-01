@@ -68,7 +68,7 @@ def decode_audio_stream(raw_bytes: bytes, filename: str = "") -> tuple[np.ndarra
         except Exception as exc:
             raise HTTPException(
                 status_code=400,
-                detail=f"Unable to parse WAV audio stream: {str(exc)}",
+                detail=f"Corrupted audio header: unable to parse WAV audio stream: {str(exc)}",
             )
         mono_audio, channels = _normalize_audio_channels(audio_data)
         return mono_audio, int(sample_rate), int(channels), "wav"
@@ -113,7 +113,7 @@ def decode_audio_stream(raw_bytes: bytes, filename: str = "") -> tuple[np.ndarra
     # If neither non-standard library is installed, provide clear instructions
     raise HTTPException(
         status_code=400,
-        detail=f"Decoded {fmt.upper()} container, but audio transcoding requires soundfile or pydub. Please upload standard PCM .wav.",
+        detail=f"Unsupported audio format: Decoded {fmt.upper()} container, but audio transcoding engine requires soundfile or pydub. Please upload standard PCM .wav.",
     )
 
 
