@@ -14,6 +14,7 @@ class AcousticFeatures(BaseModel):
     fundamental_frequency_hz: Optional[float] = Field(None, description="Estimated average pitch (F0) in Hz")
     pitch_jitter: Optional[float] = Field(None, description="Cycle-to-cycle pitch period variation")
     shimmer: Optional[float] = Field(None, description="Cycle-to-cycle amplitude perturbation")
+    snr_db: Optional[float] = Field(None, description="Estimated Signal-to-Noise Ratio (SNR) in decibels")
 
 
 class AudioFormatMetadata(BaseModel):
