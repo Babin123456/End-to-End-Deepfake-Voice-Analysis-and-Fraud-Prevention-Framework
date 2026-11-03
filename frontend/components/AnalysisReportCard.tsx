@@ -33,6 +33,14 @@ interface AnalysisReportCardProps {
     risk_level?: string;
     indicators?: string[];
     breakdown?: ForensicBreakdownType;
+    features?: {
+      sample_rate?: number;
+      duration_seconds?: number;
+      channels?: number;
+      snr_db?: number | null;
+      fundamental_frequency_hz?: number | null;
+      [key: string]: unknown;
+    };
     fraud_prevention?: FraudAdvisoryType;
     sha256_hash?: string;
     [key: string]: unknown;
@@ -141,7 +149,7 @@ export default function AnalysisReportCard({
             </div>
           )}
 
-          <ForensicMetricsGrid breakdown={result.breakdown} />
+          <ForensicMetricsGrid breakdown={result.breakdown} features={result.features} />
 
           <ForensicIndicatorList
             indicators={result.indicators}

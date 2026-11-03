@@ -8,14 +8,24 @@ interface ForensicBreakdown {
   vocoder_artifact_score?: number;
 }
 
-interface ForensicMetricsGridProps {
-  breakdown?: ForensicBreakdown;
+interface AcousticFeatures {
+  duration_seconds?: number;
+  sample_rate?: number;
+  channels?: number;
+  snr_db?: number | null;
+  fundamental_frequency_hz?: number | null;
 }
 
-export default function ForensicMetricsGrid({ breakdown }: ForensicMetricsGridProps) {
+interface ForensicMetricsGridProps {
+  breakdown?: ForensicBreakdown;
+  features?: AcousticFeatures;
+}
+
+export default function ForensicMetricsGrid({ breakdown, features }: ForensicMetricsGridProps) {
   const spectral = breakdown?.spectral_consistency ?? 85.0;
   const pitch = breakdown?.pitch_naturalness ?? 90.0;
   const vocoder = breakdown?.vocoder_artifact_score ?? 12.0;
+  const snr = features?.snr_db ?? null;
 
   return (
     <div className="forensic-grid" role="region" aria-label="Forensic metrics breakdown">
@@ -66,6 +76,24 @@ export default function ForensicMetricsGrid({ breakdown }: ForensicMetricsGridPr
         </div>
         <span className="metric-hint">AI neural synthesizer traces</span>
       </div>
+
+      {snr !== null && (
+        <div className="metric-card">
+          <div className="metric-header">
+            <span>Signal-to-Noise (SNR)</span>
+            <strong className={snr >= 20 ? "text-safe" : snr >= 10 ? "text-warning" : "text-danger"}>
+              {snr.toFixed(1)} dB
+            </strong>
+          </div>
+          <div className="metric-bar-track">
+            <div
+              className={`metric-bar-fill ${snr >= 20 ? "fill-safe" : snr >= 10 ? "fill-warning" : "fill-danger"}`}
+              style={{ width: `${Math.max(5, Math.min(100, (snr / 40) * 100))}%` }}
+            />
+          </div>
+          <span className="metric-hint">Acoustic recording clarity & clean floor</span>
+        </div>
+      )}
     </div>
   );
 }

@@ -10,6 +10,7 @@ export interface AcousticFeatures {
   fundamental_frequency_hz?: number | null;
   pitch_jitter?: number | null;
   shimmer?: number | null;
+  snr_db?: number | null;
 }
 
 export interface ForensicBreakdown {
