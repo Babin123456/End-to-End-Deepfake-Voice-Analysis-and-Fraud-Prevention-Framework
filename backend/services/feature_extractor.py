@@ -3,8 +3,10 @@ from scipy import signal
 
 try:
     from schemas.audio import AcousticFeatures
+    from services.audio_enhancer import estimate_snr_db
 except ImportError:
     from backend.schemas.audio import AcousticFeatures
+    from backend.services.audio_enhancer import estimate_snr_db
 
 
 def extract_acoustic_features(audio: np.ndarray, sample_rate: int, channels: int = 1) -> AcousticFeatures:
@@ -51,6 +53,8 @@ def extract_acoustic_features(audio: np.ndarray, sample_rate: int, channels: int
 
     f0_mean, jitter, shimmer = _estimate_pitch_and_perturbation(audio, sample_rate)
 
+    snr_db = estimate_snr_db(audio, sample_rate)
+
     return AcousticFeatures(
         sample_rate=sample_rate,
         duration_seconds=round(duration, 3),
@@ -63,6 +67,7 @@ def extract_acoustic_features(audio: np.ndarray, sample_rate: int, channels: int
         fundamental_frequency_hz=round(f0_mean, 2) if f0_mean is not None else None,
         pitch_jitter=round(jitter, 4) if jitter is not None else None,
         shimmer=round(shimmer, 4) if shimmer is not None else None,
+        snr_db=round(snr_db, 1),
     )
 
 
