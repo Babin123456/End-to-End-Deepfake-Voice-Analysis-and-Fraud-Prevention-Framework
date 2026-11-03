@@ -102,6 +102,7 @@ class _UploadTooLarge(Exception):
 
 app.add_middleware(UploadSizeLimitMiddleware)
 app.include_router(health_router, prefix="/api/v1")
+app.include_router(incidents_router, prefix="/api/v1")
 app.include_router(batch_router, prefix="/api/v1")
 
 
@@ -112,28 +113,17 @@ if str(backend_dir) not in sys.path:
     sys.path.insert(0, str(backend_dir))
 
 try:
-    from services.audio_validator import validate_and_decode_wav, validate_and_decode_audio
-    from services.feature_extractor import extract_acoustic_features
-    from services.detector import detect_synthetic_voice
-except ImportError:
-    from backend.services.audio_validator import validate_and_decode_wav, validate_and_decode_audio
-    from backend.services.feature_extractor import extract_acoustic_features
-    from backend.services.detector import detect_synthetic_voice
-
-
-import sys
-
-backend_dir = Path(__file__).resolve().parent
-if str(backend_dir) not in sys.path:
-    sys.path.insert(0, str(backend_dir))
-
-try:
+    from schemas.detection import AnalysisResponse
     from core.security import compute_sha256
+    from services.audio_validator import validate_and_decode_wav, validate_and_decode_audio
+    from services.audit_logger import log_fraud_incident
+    from services.detector import detect_synthetic_voice
+    from services.feature_extractor import extract_acoustic_features
     from services.fraud_engine import evaluate_fraud_risk
 except ImportError:
-    from backend.core.security import compute_sha256
     from backend.schemas.detection import AnalysisResponse
-    from backend.services.audio_validator import validate_and_decode_wav
+    from backend.core.security import compute_sha256
+    from backend.services.audio_validator import validate_and_decode_wav, validate_and_decode_audio
     from backend.services.audit_logger import log_fraud_incident
     from backend.services.detector import detect_synthetic_voice
     from backend.services.feature_extractor import extract_acoustic_features
